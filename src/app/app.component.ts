@@ -12,7 +12,6 @@ export class AppComponent {
   constructor(private http: HttpClient) { }
   ngOnInit() {
     const loc = localStorage.getItem('cache');
-    console.log(loc);
     if(typeof loc === 'string'){
       this.textArea = loc;
     }
@@ -72,10 +71,10 @@ export class AppComponent {
         this.rows.push(row);
       }
     }
-    console.log(this.rows);
     this.checkLocal();
     this.checkIsra();
   }
+
   checkLocal() {
     const statuses = this.statuses;
     const http = this.http;
@@ -87,31 +86,36 @@ export class AppComponent {
         formData.append('serial_no', row.trackNo);
         http.post('//bntracking.com/check.php', formData).subscribe(function (data) {
           data = data[0];
-          try {
-            const $table = $(data).find('thead').eq(0);
-            const $tr = $(data).find('tbody tr').eq(0);
-            if ( ! $table.length){
-              row.local = statuses.failed;
-            } else if (!$tr.length) {
-              row.local = statuses.shipping;
-            } else {
-              const text = $tr.find('td').eq(2).text() + ' : ' + $tr.find('td').eq(3).text();
-              const temp = statuses.rec;
-              row.local = JSON.parse(JSON.stringify(temp));
-              row.local.addition = text;
-            }
-
-          } catch (e) {
-            row.local = statuses.failed;
-          }
-          that.checkSpin();
+            localStorage[row.trackNo+'_ps'] = data;
+            that.checkLocalImp(data,row);
         }, function (error) {
           row.local = statuses.failed;
-          that.checkSpin();
+          that.checkLocalImp(localStorage[row.trackNo+'_ps'],row);
         });
       }, time);
       time += 200;
     }
+  }
+  checkLocalImp(data,row){
+    const statuses = this.statuses;
+  try {
+
+    const $table = $(data).find('thead').eq(0);
+    const $tr = $(data).find('tbody tr').eq(0);
+    if ( ! $table.length){
+      row.local = statuses.failed;
+    } else if (!$tr.length) {
+      row.local = statuses.shipping;
+    } else {
+      const text = $tr.find('td').eq(2).text() + ' : ' + $tr.find('td').eq(3).text();
+      const temp = statuses.rec;
+      row.local = JSON.parse(JSON.stringify(temp));
+      row.local.addition = text;
+    }
+  } catch (e) {
+    row.local = statuses.failed;
+  }
+    this.checkSpin();
   }
   checkIsra() {
     const statuses = this.statuses;
@@ -123,36 +127,44 @@ export class AppComponent {
         const formData: FormData = new FormData();
         formData.append('itemcode', row.trackNo);
         http.post('//bntracking.com/check.php', formData).subscribe(function (data) {
+          console.log(data);
           data = data['itemcodeinfo'];
-          try {
-            const $table = $(data).find('tr');
-            const $tr = $(data).find('tbody tr').eq(1);
-            if ($table.length !== 2){
-              row.isra = statuses.failed;
-            } else if (!$tr.length) {
-              row.isra = statuses.shipping;
-            } else {
-              const text2 = $tr.find('td').eq(0).text() + ' : ' + $tr.find('td').eq(1).text();
-              const temp = statuses.rec;
-              row.isra = JSON.parse(JSON.stringify(temp));
-              row.isra.addition = text2;
-            }
-          } catch (e) {
-            row.isra = statuses.shipping;
-          }
-          that.checkSpin();
-
+          that.checkIsraImp(data,row);
+          localStorage[row.trackNo+'_is'] = data;
         }, function (error) {
           row.isra = statuses.failed;
-          that.checkSpin();
+          that.checkIsraImp(localStorage[row.trackNo+'_is'],row);
         });
       }, time);
       time += 200;
     }
   }
+  checkIsraImp(data,row){
+    const statuses = this.statuses;
+    try {
+    console.log(data);
+    const $table = $(data).find('tr');
+    const $tr = $(data).find('tbody tr').eq(1);
+    if ($table.length !== 2){
+      row.isra = statuses.failed;
+    } else if (!$tr.length) {
+      row.isra = statuses.shipping;
+    } else {
+      const text2 = $tr.find('td').eq(0).text() + ' : ' + $tr.find('td').eq(1).text();
+      const temp = statuses.rec;
+      row.isra = JSON.parse(JSON.stringify(temp));
+      row.isra.addition = text2;
+    }
+    } catch (e) {
+      row.isra = statuses.shipping;
+    }
+    this.checkSpin();
+  }
+
+
+
   checkSpin() {
     const count = $('.table .fa.fa-spinner.fa-pulse').length;
-    console.log(count);
     if (count <= 1){
       this.loading = false;
     }
